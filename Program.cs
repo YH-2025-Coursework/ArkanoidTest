@@ -141,16 +141,16 @@ class Program
             }
         }
 
-        // ==================================
-
         ballX = nx;
         ballY = ny;
 
-        // temporary: reflect from bottom instead of game over
-        if (ballY >= H - 2)
+        // ==================================
+
+        // end the round if the ball exits past the bottom border
+        if (ballY >= H - 1)
         {
-            dy = -dy;
-            ballY = H - 3;
+            running = false;
+            return;
         }
 
         if (AllBricksCleared())
