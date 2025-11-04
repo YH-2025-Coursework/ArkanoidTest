@@ -78,82 +78,110 @@ class Program
 
     static void Update()
     {
-        int nextX = ballX + dx;
-        int nextY = ballY + dy;
+        // slow ball: run logic 1/3 ticks
+        ballTick++;
+        if (ballTick % 3 != 0) return;
 
+        int nx = ballX + dx;
+        int ny = ballY + dy;
+
+        // walls (horizontal)
+        if (nx <= 1 || nx >= W - 2)
         {
-            ballTick++;
-            if (ballTick % 3 != 0) return; // skip every second update -> slower ball
+            dx = -dx;
+            nx = ballX + dx;
         }
 
-            // Walls
-            if (nextX <= 1 || nextX >= W - 2) { dx = -dx; nextX = ballX + dx; }
-        if (nextY <= TopMargin) { dy = -dy; nextY = ballY + dy; }
+        // walls (top)
+        if (ny <= TopMargin)
+        {
+            dy = -dy;
+            ny = ballY + dy;
+        }
 
-        // Paddle collision: bounce when entering the paddle row from above
+        // paddle
         if (dy > 0 &&
-            nextY >= paddleY &&
-            nextX >= paddleX && nextX < paddleX + PaddleW)
+            ny >= paddleY &&
+            nx >= paddleX && nx < paddleX + PaddleW)
         {
             dy = -dy;
 
-            // angle control by hit position
-            int hitPos = Math.Clamp(nextX - paddleX, 0, PaddleW - 1);
-            dx = Math.Clamp(hitPos - PaddleW / 2, -2, 2);
+            // horizontal angle control (already limited to −1/0/+1 in step 1)
+            int hitPos = Math.Clamp(nx - paddleX, 0, PaddleW - 1);
+            dx = Math.Sign(hitPos - PaddleW / 2);
             if (dx == 0) dx = (ballX < W / 2) ? -1 : 1;
 
-            // snap the ball just above the paddle to avoid sticking
-            nextY = paddleY - 1;
+            ny = paddleY - 1;
         }
 
-        // Brick collision
-        var (hit, reflectX, reflectY) = HitBrick(nextX, nextY);
-        if (hit)
+        // ===== per-axis brick collision =====
+
+        // X-axis
+        if (nx != ballX)
         {
-            if (reflectX) dx = -dx;
-            if (reflectY) dy = -dy;
-            nextX = ballX + dx;
-            nextY = ballY + dy;
+            var (hitX, cx, rx) = BrickAt(nx, ballY);
+            if (hitX)
+            {
+                bricks[cx, rx] = false;
+                dx = -dx;
+                nx = ballX + dx;
+            }
         }
 
-        ballX = nextX;
-        ballY = nextY;
+        // Y-axis (use new nx)
+        if (ny != ballY)
+        {
+            var (hitY, cy, ry) = BrickAt(nx, ny);
+            if (hitY)
+            {
+                bricks[cy, ry] = false;
+                dy = -dy;
+                ny = ballY + dy;
+            }
+        }
 
-        // Temp: bounce off bottom instead of game over
-        if (nextY >= H - 2)
+        // ==================================
+
+        ballX = nx;
+        ballY = ny;
+
+        // temporary: reflect from bottom instead of game over
+        if (ballY >= H - 2)
         {
             dy = -dy;
-            nextY = ballY + dy;
+            ballY = H - 3;
         }
-        // Win check
-        if (AllBricksCleared()) running = false;
+
+        if (AllBricksCleared())
+            running = false;
     }
+
+
+    static (bool hit, int c, int r) BrickAt(int x, int y)
+    {
+        int cols = bricks.GetLength(0), rows = bricks.GetLength(1);
+        int brickTop = TopMargin + 1, brickBottom = TopMargin + 1 + rows;
+        if (y < brickTop || y >= brickBottom) return (false, -1, -1);
+
+        int r = y - brickTop;
+        // EXACTLY the same mapping used in Render():
+        int c = (x - 1) * cols / (W - 2);
+        c = Math.Clamp(c, 0, cols - 1);
+
+        return (bricks[c, r], c, r);
+    }
+
 
     static (bool hit, bool reflectX, bool reflectY) HitBrick(int nx, int ny)
     {
-        // Map console coords to brick grid (uniform cell mapping)
-        int cols = bricks.GetLength(0);
-        int rows = bricks.GetLength(1);
+        var (hit, c, r) = BrickAt(nx, ny);
+        if (!hit) return (false, false, false);
 
-        // Brick area bounds
-        int left = 1, right = W - 2;
-        int top = TopMargin + 1, bottom = TopMargin + 1 + rows; // 1 row per brick visually
-
-        if (ny >= top && ny < bottom)
-        {
-            int r = ny - top;
-            int c = (nx - left) * cols / (right - left);
-            c = Math.Clamp(c, 0, cols - 1);
-
-            if (bricks[c, r])
-            {
-                bricks[c, r] = false;
-                // Simple reflection heuristic: reflect vertical by default
-                return (true, false, true);
-            }
-        }
-        return (false, false, false);
+        bricks[c, r] = false;
+        // keep your current simple vertical reflection
+        return (true, false, true);
     }
+
 
     static bool AllBricksCleared()
     {
