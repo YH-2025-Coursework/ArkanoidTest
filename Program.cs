@@ -7,13 +7,9 @@ using System.Runtime.InteropServices;
 class Program
 {
     const int W = 60, H = 24;
-    const int TopMargin = 2;
+    const int PaddleW = 9, TopMargin = 2;
 
-    const int PaddleW = 9;
-    static int paddleX = (W - PaddleW) / 2;
-    static int paddleTopY = H - 3;         // top visible row
-    static int PaddleLowerY => paddleTopY + 1; // collision row (also drawn)
-
+    static int paddleX = (W - PaddleW) / 2, paddleY = H - 2;
 
     static int ballX = W / 2, ballY = H / 2, dx = 1, dy = -1;
     static bool[,] bricks;
@@ -94,19 +90,20 @@ class Program
             if (nextX <= 1 || nextX >= W - 2) { dx = -dx; nextX = ballX + dx; }
         if (nextY <= TopMargin) { dy = -dy; nextY = ballY + dy; }
 
-        // Paddle collision: bounce on the LOWER row only
+        // Paddle collision: bounce when entering the paddle row from above
         if (dy > 0 &&
-            nextY >= PaddleLowerY &&
+            nextY >= paddleY &&
             nextX >= paddleX && nextX < paddleX + PaddleW)
         {
             dy = -dy;
 
+            // angle control by hit position
             int hitPos = Math.Clamp(nextX - paddleX, 0, PaddleW - 1);
             dx = Math.Clamp(hitPos - PaddleW / 2, -2, 2);
             if (dx == 0) dx = (ballX < W / 2) ? -1 : 1;
 
-            // Snap just above LOWER row -> visually touches TOP row
-            nextY = PaddleLowerY - 1; // equals paddleTopY
+            // snap the ball just above the paddle to avoid sticking
+            nextY = paddleY - 1;
         }
 
         // Brick collision
@@ -188,12 +185,8 @@ class Program
                     int c = (x - 1) * cols / (W - 2);
                     if (bricks[c, r]) ch = '█';
                 }
-
-                // Paddle (two rows)
-                if (y == paddleTopY && x >= paddleX && x < paddleX + PaddleW) ch = '▀';
-                if (y == PaddleLowerY && x >= paddleX && x < paddleX + PaddleW) ch = '▄';
-
-
+                // Paddle
+                if (y == paddleY && x >= paddleX && x < paddleX + PaddleW) ch = '█';
                 // Ball
                 if (x == ballX && y == ballY) ch = '●';
 
