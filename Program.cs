@@ -105,11 +105,12 @@ class Program
             nx >= paddleX && nx < paddleX + PaddleW)
         {
             dy = -dy;
-
-            // horizontal angle control (already limited to −1/0/+1 in step 1)
+            // vary outgoing horizontal speed based on where the paddle was hit
             int hitPos = Math.Clamp(nx - paddleX, 0, PaddleW - 1);
-            dx = Math.Sign(hitPos - PaddleW / 2);
-            if (dx == 0) dx = (ballX < W / 2) ? -1 : 1;
+            int newDx = Math.Clamp(hitPos - PaddleW / 2, -2, 2);
+            if (newDx == 0)
+                newDx = (ballX < W / 2) ? 1 : -1;
+            dx = newDx;
 
             ny = paddleY - 1;
         }
